@@ -212,34 +212,38 @@ private fun ReadingTimeCard(stats: ReadingStats) {
                 Text(
                     text = "今日阅读",
                     color = c.inkMuted,
-                    fontSize = 12.5.sp
+                    style = MaterialTheme.typography.labelMedium
                 )
                 Row(
                     verticalAlignment = Alignment.Bottom,
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier.padding(top = Space.xs)
                 ) {
                     Text(
                         text = "${stats.todayMinutes}",
                         color = c.ink,
-                        fontSize = 30.sp,
+                        style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = " 分钟",
                         color = c.inkMuted,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(bottom = 5.dp)
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(bottom = Space.xs)
                     )
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("累计 ${stats.totalMinutes} 分钟", color = c.inkMuted, fontSize = 12.sp)
+                Text(
+                    "累计 ${stats.totalMinutes} 分钟",
+                    color = c.inkMuted,
+                    style = MaterialTheme.typography.labelMedium
+                )
                 if (stats.streakDays > 0) {
                     Text(
                         text = "连续 ${stats.streakDays} 天",
                         color = c.inkFaint,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 3.dp)
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(top = Space.xs)
                     )
                 }
             }
