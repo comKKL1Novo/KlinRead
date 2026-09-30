@@ -111,19 +111,6 @@ fun AboutScreen() {
                 )
             }
         }
-
-        item {
-            SectionLabel("说明")
-            Panel(Modifier.fillMaxWidth()) {
-                Text(
-                    text = "本应用不包含任何书籍或音乐内容。书架里的书、音乐页里的音轨，" +
-                        "全部由你自己导入，只保存在本机，不上传、不联网。",
-                    color = c.inkMuted,
-                    fontSize = 13.sp,
-                    lineHeight = 20.sp
-                )
-            }
-        }
     }
 
     if (showDonate) {

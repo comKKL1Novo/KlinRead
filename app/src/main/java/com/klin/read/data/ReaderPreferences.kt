@@ -41,7 +41,7 @@ data class ReaderSettings(
      * system brightness without a special permission, and silently altering a
      * device-wide setting would be a poor trade anyway.
      */
-    val brightness: Float = 0.75f
+    val brightness: Float = 1f
 )
 
 /**
@@ -80,7 +80,7 @@ class ReaderPreferences(private val context: Context) {
                 PageTurnMode.entries.firstOrNull { it.name == name }
             } ?: PageTurnMode.SCROLL,
             marginDp = prefs[Keys.MARGIN] ?: 20f,
-            brightness = prefs[Keys.BRIGHTNESS] ?: 0.75f
+            brightness = prefs[Keys.BRIGHTNESS] ?: 1f
         )
     }
 

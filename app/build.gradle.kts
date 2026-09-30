@@ -13,8 +13,8 @@ android {
         applicationId = "com.klin.read"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.0.1"
+        versionCode = 100
+        versionName = "1.0.0"
     }
 
     buildTypes {
@@ -39,6 +39,9 @@ android {
 
     buildFeatures {
         compose = true
+        // Settings shows the real version via BuildConfig.VERSION_NAME, so the
+        // number can never drift from what the APK was built with.
+        buildConfig = true
     }
 
     testOptions {

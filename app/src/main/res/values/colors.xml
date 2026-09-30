@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      Dark backdrop for the adaptive icon.
+      Pink backdrop for the adaptive icon, matching the KlinRead artwork.
 
-      The artwork itself is a white square with dark content, so a white
-      background made the whole icon read as one blank white field. A near-black
-      backdrop separates the artwork from the frame and matches the app's
-      monochrome palette.
+      The foreground drawable carries only the book, so this colour fills the
+      rest of whatever shape the launcher masks the icon into.
     -->
-    <color name="ic_launcher_background">#0A0A0A</color>
+    <color name="ic_launcher_background">#FF9BD2</color>
 </resources>

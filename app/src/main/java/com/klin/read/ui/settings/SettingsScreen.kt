@@ -15,11 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.klin.read.BuildConfig
 import com.klin.read.ui.design.Chip
 import com.klin.read.ui.design.Hairline
 import com.klin.read.ui.design.ListRow
@@ -123,37 +122,13 @@ fun SettingsScreen(
         item {
             SectionLabel("关于")
             Panel(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-                ListRow(title = "版本", subtitle = "0.0.1")
+                ListRow(title = "版本", subtitle = BuildConfig.VERSION_NAME)
                 Hairline()
                 ListRow(
                     title = "支持的格式",
                     subtitle = "TXT、EPUB、FB2、HTML、MOBI/AZW、UMD"
                 )
             }
-        }
-
-        item {
-            Text(
-                text = "BETA 测试版",
-                color = c.inkFaint,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 1.5.sp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = Space.lg, bottom = Space.xs),
-                textAlign = TextAlign.Center
-            )
-        }
-
-        item {
-            Text(
-                text = "本应用不联网、不上传。书架和音乐都只读取你自己导入的文件。",
-                color = c.inkFaint,
-                fontSize = 11.5.sp,
-                lineHeight = 17.sp,
-                modifier = Modifier.padding(top = Space.sm, start = Space.xs)
-            )
         }
     }
 }
