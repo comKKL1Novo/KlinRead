@@ -133,12 +133,38 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
      * Records how far into the chapter the reader has scrolled.
      *
      * Only the index is kept in view state; no database write happens here,
-     * because this fires on every scroll frame.
+     * because this fires on every scroll frame. Reaching the end of the last
+     * chapter is the one exception, and that write is guarded so it happens once.
      */
     fun onParagraphVisible(index: Int) {
         val current = _state.value as? ReaderUiState.Ready ?: return
         if (current.paragraphIndex != index) {
             _state.value = current.copy(paragraphIndex = index)
+        }
+        markFinishedIfAtEnd(current, index)
+    }
+
+    /**
+     * Marks the book finished once the reader reaches the end of the last chapter.
+     *
+     * A chapter is a character range, so "the end" is measured in paragraphs of
+     * that chapter's body: the book counts as finished only when the final
+     * chapter is open and its last paragraph has been reached. That means merely
+     * opening a book — which lands on paragraph 0 — never marks it finished.
+     */
+    private fun markFinishedIfAtEnd(current: ReaderUiState.Ready, paragraphIndex: Int) {
+        if (current.chapterIndex != current.book.chapters.size - 1) return
+
+        val paragraphs = splitParagraphs(
+            current.book.text.substring(current.chapter.start, current.chapter.end)
+        )
+        val lastIndex = paragraphs.lastIndex
+        if (lastIndex < 0 || paragraphIndex < lastIndex) return
+
+        // Guarded in SQL as well: markFinished only affects rows still unfinished,
+        // so the original finished_at survives repeated calls while scrolling.
+        viewModelScope.launch {
+            dao.markFinished(bookId)
         }
     }
 

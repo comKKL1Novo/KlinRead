@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,33 +18,47 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.klin.read.data.BookEntity
 import com.klin.read.data.ReadingStats
+import com.klin.read.ui.design.Chip
 import com.klin.read.ui.design.EmptyHint
+import com.klin.read.ui.design.FlatTextField
+import com.klin.read.ui.design.Hairline
+import com.klin.read.ui.design.ListRow
 import com.klin.read.ui.design.LocalColors
 import com.klin.read.ui.design.Panel
 import com.klin.read.ui.design.PrimaryButton
+import com.klin.read.ui.design.QuietButton
 import com.klin.read.ui.design.ScreenTitle
 import com.klin.read.ui.design.SectionLabel
 import com.klin.read.ui.design.Space
+import java.io.File
 
 /**
  * The shelf tab.
@@ -58,6 +73,9 @@ fun ShelfScreen(
 ) {
     val c = LocalColors.current
     val books by viewModel.books.collectAsStateWithLifecycle()
+    val visible by viewModel.visibleBooks.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val selectedKey by viewModel.selected.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -78,6 +96,7 @@ fun ShelfScreen(
             snackbar.showSnackbar(
                 when (it) {
                     is ShelfMessage.ImportFailed -> it.reason
+                    is ShelfMessage.Notice -> it.text
                 }
             )
             viewModel.consumeMessage()
@@ -109,14 +128,44 @@ fun ShelfScreen(
                     )
                 }
             } else {
-                item { SectionLabel("全部 ${books.size} 本") }
-                items(books, key = { it.id }) { book ->
-                    BookRow(
-                        book = book,
-                        progress = viewModel.progressFor(book),
-                        onClick = { onOpenBook(book.id) },
-                        onRemove = { viewModel.remove(book) }
-                    )
+                // Category filters with counts. Horizontally scrollable so a long
+                // list of custom categories never wraps or clips.
+                item {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(Space.sm),
+                        contentPadding = PaddingValues(vertical = Space.xs)
+                    ) {
+                        items(categories, key = { it.key }) { category ->
+                            Chip(
+                                label = "${category.label} ${category.count}",
+                                selected = category.key == selectedKey,
+                                onClick = { viewModel.select(category.key) }
+                            )
+                        }
+                    }
+                }
+
+                if (visible.isEmpty()) {
+                    item {
+                        EmptyHint(
+                            title = "这个分类还没有书",
+                            detail = "换一个分类看看，或导入新的电子书"
+                        )
+                    }
+                } else {
+                    items(visible, key = { it.id }) { book ->
+                        BookRow(
+                            book = book,
+                            progress = viewModel.progressFor(book),
+                            onClick = { onOpenBook(book.id) },
+                            onRemove = { viewModel.remove(book) },
+                            onToggleFinished = { viewModel.toggleFinished(book) },
+                            onSetCategory = { name -> viewModel.setCategory(book, name) },
+                            existingCategories = categories
+                                .filter { it.key.startsWith("cat:") }
+                                .map { it.label }
+                        )
+                    }
                 }
             }
         }
@@ -223,32 +272,76 @@ private fun ReadingTimeCard(stats: ReadingStats) {
     }
 }
 
+/**
+ * One book, as a cover thumbnail plus its details.
+ *
+ * The cover is drawn from the cached file when extraction succeeded, and from a
+ * generated gradient otherwise — TXT and UMD never have one, so the placeholder
+ * is the normal case rather than an error state.
+ */
 @Composable
 private fun BookRow(
     book: BookEntity,
     progress: Float,
     onClick: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onToggleFinished: () -> Unit,
+    onSetCategory: (String?) -> Unit,
+    existingCategories: List<String>
 ) {
     val c = LocalColors.current
+    var showMenu by remember { mutableStateOf(false) }
+
+    if (showMenu) {
+        BookActionsSheet(
+            book = book,
+            existingCategories = existingCategories,
+            onDismiss = { showMenu = false },
+            onToggleFinished = {
+                showMenu = false
+                onToggleFinished()
+            },
+            onSetCategory = { name ->
+                showMenu = false
+                onSetCategory(name)
+            },
+            onRemove = {
+                showMenu = false
+                onRemove()
+            }
+        )
+    }
+
     Panel(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            // Long-press opens the actions sheet; a tap would otherwise conflict
+            // with opening the book.
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { showMenu = true }
+            ),
         contentPadding = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = Space.lg, top = Space.md, bottom = Space.md, end = Space.md),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(Space.md),
+            verticalAlignment = Alignment.Top
         ) {
-            Column(Modifier.weight(1f)) {
+            BookCover(book = book, modifier = Modifier.size(width = 62.dp, height = 88.dp))
+
+            Column(
+                Modifier
+                    .weight(1f)
+                    .padding(start = Space.md, top = 2.dp)
+            ) {
                 Text(
                     text = book.title,
                     color = c.ink,
                     fontSize = 15.sp,
-                    maxLines = 1,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
@@ -261,35 +354,183 @@ private fun BookRow(
                     },
                     color = c.inkMuted,
                     fontSize = 12.5.sp,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 5.dp)
                 )
-            }
-            Text(
-                text = "移除",
-                color = c.inkFaint,
-                fontSize = 12.5.sp,
-                modifier = Modifier
-                    .clickable(onClick = onRemove)
-                    .padding(start = Space.md, top = 6.dp, bottom = 6.dp, end = 4.dp)
-            )
-        }
 
-        // Reading progress, matching the slider track.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Space.lg)
-                .padding(bottom = Space.md)
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(c.surfaceMuted)
-        ) {
-            if (progress > 0f) {
+                if (!book.category.isNullOrBlank()) {
+                    Text(
+                        text = book.category!!,
+                        color = c.inkFaint,
+                        fontSize = 11.5.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(Space.sm))
+
+                // Reading progress, matching the slider track.
                 Box(
                     Modifier
-                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .fillMaxWidth()
                         .height(3.dp)
-                        .background(c.accent)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(c.surfaceMuted)
+                ) {
+                    if (progress > 0f) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                                .height(3.dp)
+                                .background(c.accent)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Long-press actions for one book: rename its category, flip the finished flag,
+ * or remove it.
+ *
+ * A bottom sheet rather than a dropdown, so the category list has room to grow
+ * and the destructive action is separated from the everyday ones.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BookActionsSheet(
+    book: BookEntity,
+    existingCategories: List<String>,
+    onDismiss: () -> Unit,
+    onToggleFinished: () -> Unit,
+    onSetCategory: (String?) -> Unit,
+    onRemove: () -> Unit
+) {
+    val c = LocalColors.current
+    var newCategory by remember { mutableStateOf("") }
+    var showCategoryInput by remember { mutableStateOf(false) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(Modifier.padding(horizontal = Space.lg).padding(bottom = Space.xl)) {
+            Text(
+                text = book.title,
+                color = c.ink,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(Modifier.height(Space.lg))
+
+            ListRow(
+                title = if (book.isFinished) "标记为未读完" else "标记为读完",
+                subtitle = if (book.isFinished) "从「读完」中移出" else "加入「读完」分类",
+                onClick = onToggleFinished
+            )
+            Hairline()
+
+            SectionLabel("分类")
+            if (existingCategories.isEmpty()) {
+                Text(
+                    text = "还没有分类，新建一个试试",
+                    color = c.inkFaint,
+                    fontSize = 12.5.sp,
+                    modifier = Modifier.padding(start = Space.xs, bottom = Space.sm)
+                )
+            } else {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(Space.sm),
+                    contentPadding = PaddingValues(bottom = Space.sm)
+                ) {
+                    item {
+                        Chip(
+                            label = "未分类",
+                            selected = book.category.isNullOrBlank(),
+                            onClick = { onSetCategory(null) }
+                        )
+                    }
+                    items(existingCategories, key = { it }) { name ->
+                        Chip(
+                            label = name,
+                            selected = book.category == name,
+                            onClick = { onSetCategory(name) }
+                        )
+                    }
+                }
+            }
+
+            if (showCategoryInput) {
+                FlatTextField(
+                    value = newCategory,
+                    onValueChange = { newCategory = it },
+                    placeholder = "分类名称，如「小说」",
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(Space.sm))
+                PrimaryButton(
+                    text = "创建并加入",
+                    onClick = {
+                        if (newCategory.isNotBlank()) onSetCategory(newCategory.trim())
+                    },
+                    enabled = newCategory.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                QuietButton(
+                    text = "新建分类",
+                    onClick = { showCategoryInput = true },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(Modifier.height(Space.lg))
+            Hairline()
+            ListRow(title = "从书架移除", onClick = onRemove)
+        }
+    }
+}
+
+/**
+ * The cover thumbnail.
+ *
+ * When a cached cover exists it is loaded through Coil; otherwise a gradient with
+ * the title's first character is drawn. A finished book gets a corner badge.
+ */
+@Composable
+private fun BookCover(book: BookEntity, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.clip(RoundedCornerShape(10.dp))) {
+        val coverPath = book.coverPath
+        if (coverPath != null) {
+            AsyncImage(
+                model = File(coverPath),
+                contentDescription = book.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            GeneratedCover(title = book.title, modifier = Modifier.fillMaxSize())
+        }
+
+        // "已读完" marker, pinned to the top-right of the cover.
+        if (book.isFinished) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.tertiaryContainer)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "读完",
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

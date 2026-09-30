@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 /** One-off messages surfaced to the user, then cleared. */
 sealed interface ShelfMessage {
     data class ImportFailed(val reason: String) : ShelfMessage
+    data class Notice(val text: String) : ShelfMessage
 }
 
 class ShelfViewModel(app: Application) : AndroidViewModel(app) {
@@ -44,6 +46,46 @@ class ShelfViewModel(app: Application) : AndroidViewModel(app) {
     private val _importing = MutableStateFlow(false)
     val importing: StateFlow<Boolean> = _importing.asStateFlow()
 
+    /** Currently selected filter chip. Defaults to 全部. */
+    private val _selected = MutableStateFlow(ShelfCategory.ALL)
+    val selected: StateFlow<String> = _selected.asStateFlow()
+
+    /**
+     * Filter chips with live counts.
+     *
+     * Recomputed whenever the book list changes, so counts stay correct after an
+     * import, a removal, or a book being marked finished.
+     */
+    val categories: StateFlow<List<ShelfCategory>> = books
+        .combine(dao.observeCategories()) { list, _ ->
+            ShelfCategory.builtIn(list) { isStarted(it.id) } + ShelfCategory.custom(list)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Books matching the selected chip. */
+    val visibleBooks: StateFlow<List<BookEntity>> = books
+        .combine(_selected) { list, key ->
+            val category = (ShelfCategory.builtIn(list) { isStarted(it.id) } +
+                ShelfCategory.custom(list))
+                .firstOrNull { it.key == key }
+                ?: ShelfCategory(ShelfCategory.ALL, "全部", list.size)
+            list.filterBy(category) { isStarted(it.id) }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun select(key: String) {
+        _selected.value = key
+    }
+
+    /**
+     * Whether [bookId] has ever been opened.
+     *
+     * Backed by the chapter cache: a saved chapter index greater than zero means
+     * the reader got at least one page in. Read synchronously, so the filter chips
+     * can be built without a suspending call per book.
+     */
+    private fun isStarted(bookId: Long): Boolean = (chapterCache[bookId] ?: 0) > 0
+
     /**
      * How far through [book] the reader is, 0f..1f.
      *
@@ -52,6 +94,7 @@ class ShelfViewModel(app: Application) : AndroidViewModel(app) {
      * subscription per row.
      */
     fun progressFor(book: BookEntity): Float {
+        if (book.isFinished) return 1f
         if (book.charCount <= 0) return 0f
         val chapter = cachedChapter(book.id)
         if (chapter <= 0) return 0f
@@ -115,6 +158,28 @@ class ShelfViewModel(app: Application) : AndroidViewModel(app) {
 
     fun remove(book: BookEntity) {
         viewModelScope.launch { dao.delete(book) }
+    }
+
+    /** Moves [book] into a custom category, or clears it when [name] is blank. */
+    fun setCategory(book: BookEntity, name: String?) {
+        viewModelScope.launch {
+            dao.setCategory(book.id, name?.takeIf { it.isNotBlank() })
+            _message.value = ShelfMessage.Notice(
+                if (name.isNullOrBlank()) "已移出分类" else "已加入「$name」"
+            )
+        }
+    }
+
+    fun toggleFinished(book: BookEntity) {
+        viewModelScope.launch {
+            if (book.isFinished) {
+                dao.clearFinished(book.id)
+                _message.value = ShelfMessage.Notice("已标记为未读完")
+            } else {
+                dao.markFinished(book.id)
+                _message.value = ShelfMessage.Notice("已标记为读完")
+            }
+        }
     }
 
     fun consumeMessage() {

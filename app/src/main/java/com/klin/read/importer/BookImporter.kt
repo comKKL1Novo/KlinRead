@@ -6,6 +6,7 @@ import android.provider.OpenableColumns
 import com.klin.read.data.BookDao
 import com.klin.read.data.BookEntity
 import com.klin.read.reader.BookParser
+import com.klin.read.reader.CoverExtractor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -41,21 +42,41 @@ class BookImporter(
         val info = queryDocumentInfo(uri)
         val parsed = BookParser.parse(context, uri, info.displayName)
 
+        val format = info.displayName.substringAfterLast('.', "")
+            .uppercase()
+            .takeIf { it.isNotEmpty() }
+            ?: guessFormatLabel(uri)
+
         val book = BookEntity(
             title = parsed.title,
             uri = uri.toString(),
             // Stored for display only; the real format is re-detected on open, so
             // a wrong or missing extension here cannot break reading.
-            format = info.displayName.substringAfterLast('.', "")
-                .uppercase()
-                .takeIf { it.isNotEmpty() }
-                ?: guessFormatLabel(uri),
+            format = format,
             sizeBytes = info.sizeBytes,
             charCount = parsed.charCount,
             lastOpenedAt = System.currentTimeMillis()
         )
 
-        bookDao.insert(book)
+        val id = bookDao.insert(book)
+
+        // Covers are cached after the row exists, because the cache file is named
+        // after the id. A failure here must not lose the book, so it is swallowed
+        // and the shelf falls back to a generated placeholder.
+        val cover = CoverExtractor.extract(
+            context = context,
+            uri = uri.toString(),
+            format = format,
+            bookId = id,
+            openStream = { path ->
+                runCatching {
+                    context.contentResolver.openInputStream(Uri.parse(path))
+                }.getOrNull()
+            }
+        )
+        if (cover != null) bookDao.setCover(id, cover)
+
+        return@withContext id
     }
 
     /** Best-effort label for the shelf when the provider gave no extension. */

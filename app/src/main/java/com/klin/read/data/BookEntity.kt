@@ -10,6 +10,10 @@ import androidx.room.PrimaryKey
  * The app never stores book text itself: it keeps the SAF URI the user granted
  * and reads content on demand. That keeps the database tiny and means we hold no
  * copy of the user's files.
+ *
+ * Cover art is the one exception. It is extracted once at import time and cached
+ * as a small file, because re-parsing an EPUB cover on every shelf scroll would
+ * be far too slow. [coverPath] points at that cache file.
  */
 @Entity(tableName = "books")
 data class BookEntity(
@@ -36,5 +40,35 @@ data class BookEntity(
     @ColumnInfo(name = "last_opened_at")
     val lastOpenedAt: Long,
 
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+
+    /**
+     * Absolute path to the cached cover image, or null when the format carries no
+     * cover (TXT, HTML, UMD) or extraction failed. The shelf draws a generated
+     * placeholder in that case.
+     */
+    @ColumnInfo(name = "cover_path")
+    val coverPath: String? = null,
+
+    /**
+     * Set once the reader reaches the end of the last chapter.
+     *
+     * Drives the "已读完" badge on the cover and membership of the 读完 category.
+     * It is never cleared automatically — a finished book stays finished until the
+     * user changes the category by hand.
+     */
+    @ColumnInfo(name = "is_finished")
+    val isFinished: Boolean = false,
+
+    /** When the book was marked finished, for stable ordering inside 读完. */
+    @ColumnInfo(name = "finished_at")
+    val finishedAt: Long? = null,
+
+    /**
+     * User-assigned shelf category, or null for 未分类.
+     *
+     * Stored as the display name so a renamed category is a single update.
+     */
+    @ColumnInfo(name = "category")
+    val category: String? = null
 )
