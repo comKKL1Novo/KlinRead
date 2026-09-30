@@ -46,7 +46,6 @@ fun Panel(
     contentPadding: Dp = Space.lg,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val c = LocalColors.current
     val scheme = MaterialTheme.colorScheme
     Column(
         modifier = modifier
@@ -63,8 +62,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
+        style = MaterialTheme.typography.labelSmall,
         letterSpacing = 1.2.sp,
         modifier = modifier.padding(start = Space.xs, bottom = Space.sm, top = Space.md)
     )
@@ -76,7 +74,7 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         color = MaterialTheme.colorScheme.onBackground,
-        fontSize = 28.sp,
+        style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.Bold,
         letterSpacing = (-0.5).sp,
         modifier = modifier
@@ -235,22 +233,23 @@ fun ListRow(
                     Modifier
                 }
             )
-            .padding(horizontal = Space.lg, vertical = 15.dp),
+            // 4/8dp rhythm: the row height lands on a multiple of 8.
+            .padding(horizontal = Space.lg, vertical = Space.md),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         if (leading != null) {
             leading()
-            Box(Modifier.padding(end = 14.dp))
+            Box(Modifier.padding(end = Space.md))
         }
         Column(Modifier.weight(1f)) {
-            Text(title, color = c.ink, fontSize = 15.sp)
+            Text(title, color = c.ink, style = MaterialTheme.typography.bodyLarge)
             if (subtitle != null) {
                 Text(
                     subtitle,
                     color = c.inkMuted,
-                    fontSize = 12.5.sp,
-                    modifier = Modifier.padding(top = 3.dp)
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = Space.xs)
                 )
             }
         }
