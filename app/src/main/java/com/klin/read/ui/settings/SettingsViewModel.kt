@@ -24,7 +24,7 @@ fun ThemeChoice.label(): String = when (this) {
 
 data class SettingsUiState(
     val theme: ThemeChoice = ThemeChoice.SEPIA,
-    val darkGlass: Boolean = false,
+    val darkTheme: Boolean = false,
     val brightness: Float = 0.75f
 )
 
@@ -51,7 +51,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     ) { settings, overrides ->
         SettingsUiState(
             theme = settings.theme.toChoice(),
-            darkGlass = settings.darkGlass,
+            darkTheme = settings.darkTheme,
             // An in-flight drag wins over the stored value.
             brightness = overrides.brightness ?: settings.brightness
         )
@@ -83,8 +83,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { prefs.setTheme(choice.toTheme()) }
     }
 
-    fun setDarkGlass(enabled: Boolean) {
-        viewModelScope.launch { prefs.setDarkGlass(enabled) }
+    fun setDarkTheme(enabled: Boolean) {
+        viewModelScope.launch { prefs.setDarkTheme(enabled) }
     }
 }
 

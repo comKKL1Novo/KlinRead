@@ -27,9 +27,7 @@ data class ReaderSettings(
      */
     val theme: ReaderTheme = ReaderTheme.SEPIA,
     /** App-wide dark appearance. */
-    val darkGlass: Boolean = false,
-    /** When false, panels are drawn more opaque. */
-    val translucent: Boolean = true,
+    val darkTheme: Boolean = false,
     /** How the reader advances between screens. */
     val pageTurn: PageTurnMode = PageTurnMode.SCROLL,
     /** Horizontal page margin in dp. */
@@ -57,8 +55,9 @@ class ReaderPreferences(private val context: Context) {
         val FONT_SIZE = floatPreferencesKey("font_size_sp")
         val LINE_HEIGHT = floatPreferencesKey("line_height")
         val THEME = stringPreferencesKey("theme")
-        val DARK_GLASS = booleanPreferencesKey("dark_glass")
-        val TRANSLUCENT = booleanPreferencesKey("translucent")
+        // Renamed from "dark_glass": the glass treatment is gone, so the key
+        // should not still name it.
+        val DARK_THEME = booleanPreferencesKey("dark_theme")
         val PAGE_TURN = stringPreferencesKey("page_turn")
         val MARGIN = floatPreferencesKey("margin_dp")
         val BRIGHTNESS = floatPreferencesKey("brightness")
@@ -74,8 +73,7 @@ class ReaderPreferences(private val context: Context) {
             theme = prefs[Keys.THEME]?.let { name ->
                 ReaderTheme.entries.firstOrNull { it.name == name }
             } ?: ReaderTheme.LIGHT,
-            darkGlass = prefs[Keys.DARK_GLASS] ?: false,
-            translucent = prefs[Keys.TRANSLUCENT] ?: true,
+            darkTheme = prefs[Keys.DARK_THEME] ?: false,
             pageTurn = prefs[Keys.PAGE_TURN]?.let { name ->
                 PageTurnMode.entries.firstOrNull { it.name == name }
             } ?: PageTurnMode.SCROLL,
@@ -110,12 +108,8 @@ class ReaderPreferences(private val context: Context) {
         context.dataStore.edit { it[Keys.THEME] = theme.name }
     }
 
-    suspend fun setDarkGlass(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.DARK_GLASS] = enabled }
-    }
-
-    suspend fun setTranslucent(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.TRANSLUCENT] = enabled }
+    suspend fun setDarkTheme(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.DARK_THEME] = enabled }
     }
 
     /** Character offset within the book, plus the chapter it fell in. */

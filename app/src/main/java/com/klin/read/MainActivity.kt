@@ -104,7 +104,7 @@ private fun ReaderApp() {
     val settings by preferences.settings.collectAsStateWithLifecycle(
         initialValue = ReaderSettings()
     )
-    val dark = settings.darkGlass
+    val dark = settings.darkTheme
 
     // Brightness applied to this app's window.
     //

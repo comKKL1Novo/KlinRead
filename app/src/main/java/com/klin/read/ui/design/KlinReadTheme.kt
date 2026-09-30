@@ -172,15 +172,15 @@ fun KlinReadTheme(
         else -> lightScheme()
     }
 
-    val appColors = if (darkTheme) DarkColors else LightColors
-
     MaterialTheme(
         colorScheme = scheme,
         shapes = ExpressiveShapes,
         typography = AppTypography
     ) {
+        // The semantic palette is derived from the scheme above, so screens and
+        // Material components can never drift apart.
         CompositionLocalProvider(
-            LocalColors provides appColors,
+            LocalColors provides rememberAppColors(),
             LocalDarkTheme provides darkTheme,
             content = content
         )

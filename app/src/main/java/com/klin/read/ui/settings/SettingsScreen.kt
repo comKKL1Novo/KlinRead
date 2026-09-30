@@ -107,8 +107,8 @@ fun SettingsScreen(
                     subtitle = "整个应用使用深色配色",
                     trailing = {
                         Switch(
-                            checked = appearance.darkGlass,
-                            onCheckedChange = viewModel::setDarkGlass,
+                            checked = appearance.darkTheme,
+                            onCheckedChange = viewModel::setDarkTheme,
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = c.accentInk,
                                 checkedTrackColor = c.accent

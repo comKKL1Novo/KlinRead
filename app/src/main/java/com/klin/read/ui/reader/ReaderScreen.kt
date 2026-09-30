@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -88,7 +89,11 @@ fun ReaderScreen(
             Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text(current.reason, color = Color(0xFF666666))
+            Text(
+                current.reason,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
 
         is ReaderUiState.Ready -> {
