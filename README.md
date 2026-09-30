@@ -1,4 +1,4 @@
-# KKL1nRead
+# KlinRead
 
 一个简洁的安卓本地电子书阅读器。界面走透明液态玻璃风格，解析全部手写、零第三方解析库。
 
@@ -203,7 +203,7 @@ pwsh tools\run-tests.ps1
 ## 工程结构
 
 ```
-app/src/main/java/com/kkl1n/read/
+app/src/main/java/com/klin/read/
 ├── MainActivity.kt              导航（书架 ↔ 阅读 ↔ 音乐），edge-to-edge
 ├── data/
 │   ├── BookEntity.kt            书架条目：只存 SAF URI，不存正文

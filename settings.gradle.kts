@@ -39,5 +39,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "KKL1nRead"
+rootProject.name = "KlinRead"
 include(":app")

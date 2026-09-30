@@ -8,7 +8,7 @@
 
 param(
     [switch]$Private,
-    [string]$RepoName = 'KKL1nRead'
+    [string]$RepoName = 'KlinRead'
 )
 
 $ErrorActionPreference = 'Continue'

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">KKL1nRead</string>
+    <string name="app_name">KlinRead</string>
 
     <string name="shelf_title">书架</string>
     <string name="shelf_empty">书架是空的</string>

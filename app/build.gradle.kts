@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.kkl1n.read"
+    namespace = "com.klin.read"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.kkl1n.read"
+        applicationId = "com.klin.read"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -96,7 +96,7 @@ dependencies {
 }
 
 /**
- * Copies the built APK into the project root as KKL1nRead.apk.
+ * Copies the built APK into the project root as KlinRead.apk.
  *
  * The default output path is buried several folders deep, which makes the
  * installable file awkward to find. Dropping a copy next to the project keeps a
@@ -113,7 +113,7 @@ tasks.register("exportApk") {
         if (!built.exists()) {
             throw GradleException("APK not found at ${built.absolutePath}")
         }
-        val target = rootProject.layout.projectDirectory.file("KKL1nRead.apk").asFile
+        val target = rootProject.layout.projectDirectory.file("KlinRead.apk").asFile
         built.copyTo(target, overwrite = true)
         println("APK exported to ${target.absolutePath} (${target.length() / 1024 / 1024} MB)")
     }
