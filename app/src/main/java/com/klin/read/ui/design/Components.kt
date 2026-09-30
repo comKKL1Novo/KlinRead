@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -33,22 +34,24 @@ import androidx.compose.ui.unit.sp
 /**
  * A flat surface panel.
  *
- * No gradient, no blur, no glow: a solid fill and generous padding. This is the
- * main change from the earlier glass treatment.
+ * Uses the Material colour roles rather than the hand-rolled palette, so panels
+ * pick up the seeded pink scheme (or the wallpaper palette) automatically. The
+ * large corner radius is the Expressive signature.
  */
 @Composable
 fun Panel(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 14.dp,
+    cornerRadius: Dp = 22.dp,
     filled: Boolean = true,
     contentPadding: Dp = Space.lg,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val c = LocalColors.current
+    val scheme = MaterialTheme.colorScheme
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
-            .background(if (filled) c.surface else Color.Transparent)
+            .background(if (filled) scheme.surface else Color.Transparent)
             .padding(contentPadding),
         content = content
     )
@@ -57,12 +60,11 @@ fun Panel(
 /** Section label: small, spaced, muted. */
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
-    val c = LocalColors.current
     Text(
         text = text,
-        color = c.inkFaint,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontSize = 11.sp,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         letterSpacing = 1.2.sp,
         modifier = modifier.padding(start = Space.xs, bottom = Space.sm, top = Space.md)
     )
@@ -71,12 +73,12 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 /** Screen title, sized like a heading rather than a banner. */
 @Composable
 fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
-    val c = LocalColors.current
     Text(
         text = text,
-        color = c.ink,
-        fontSize = 24.sp,
-        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground,
+        fontSize = 28.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.5).sp,
         modifier = modifier
     )
 }
@@ -84,12 +86,11 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
 /** Hairline divider. */
 @Composable
 fun Hairline(modifier: Modifier = Modifier) {
-    val c = LocalColors.current
     Box(
         modifier
             .fillMaxWidth()
             .height(1.dp)
-            .background(c.divider)
+            .background(MaterialTheme.colorScheme.outlineVariant)
     )
 }
 
@@ -140,7 +141,7 @@ fun FlatTextField(
     }
 }
 
-/** Primary button: solid accent, no gradient. */
+/** Primary button: filled with the primary role, pill-shaped. */
 @Composable
 fun PrimaryButton(
     text: String,
@@ -150,20 +151,47 @@ fun PrimaryButton(
     destructive: Boolean = false
 ) {
     val c = LocalColors.current
+    val scheme = MaterialTheme.colorScheme
     val bg = when {
-        !enabled -> c.surfaceMuted
-        destructive -> c.danger
-        else -> c.accent
+        !enabled -> scheme.surfaceVariant
+        destructive -> scheme.error
+        else -> scheme.primary
     }
     val fg = when {
-        !enabled -> c.inkFaint
-        destructive -> Color.White
-        else -> c.accentInk
+        !enabled -> scheme.onSurfaceVariant
+        destructive -> scheme.onError
+        else -> scheme.onPrimary
     }
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(999.dp))
             .background(bg)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            )
+            .padding(vertical = 15.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = fg, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/** Secondary button: tonal fill, pill-shaped. */
+@Composable
+fun QuietButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(scheme.secondaryContainer)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -173,33 +201,12 @@ fun PrimaryButton(
             .padding(vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = fg, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-/** Secondary button: muted fill only. */
-@Composable
-fun QuietButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
-) {
-    val c = LocalColors.current
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(c.surfaceMuted)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                enabled = enabled,
-                onClick = onClick
-            )
-            .padding(vertical = 13.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text, color = if (enabled) c.ink else c.inkFaint, fontSize = 15.sp)
+        Text(
+            text,
+            color = if (enabled) scheme.onSecondaryContainer else scheme.onSurfaceVariant,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
@@ -259,19 +266,19 @@ fun Chip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val c = LocalColors.current
+    val scheme = MaterialTheme.colorScheme
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(if (selected) c.accent else c.surfaceMuted)
+            .background(if (selected) scheme.primary else scheme.surfaceVariant)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 9.dp)
     ) {
         Text(
             label,
-            color = if (selected) c.accentInk else c.inkMuted,
+            color = if (selected) scheme.onPrimary else scheme.onSurfaceVariant,
             fontSize = 13.sp,
-            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
         )
     }
 }

@@ -40,8 +40,7 @@ import com.klin.read.data.ReaderPreferences
 import com.klin.read.data.ReaderSettings
 import com.klin.read.music.MusicPlayer
 import com.klin.read.ui.about.AboutScreen
-import com.klin.read.ui.design.DarkColors
-import com.klin.read.ui.design.LightColors
+import com.klin.read.ui.design.KlinReadTheme
 import com.klin.read.ui.design.LocalColors
 import com.klin.read.ui.music.MusicScreen
 import com.klin.read.ui.music.MusicViewModel
@@ -105,7 +104,7 @@ private fun ReaderApp() {
     val settings by preferences.settings.collectAsStateWithLifecycle(
         initialValue = ReaderSettings()
     )
-    val colors = if (settings.darkGlass) DarkColors else LightColors
+    val dark = settings.darkGlass
 
     // Brightness applied to this app's window.
     //
@@ -143,9 +142,8 @@ private fun ReaderApp() {
         return
     }
 
-    CompositionLocalProvider(LocalColors provides colors) {
-        MaterialTheme {
-            NavHost(navController = navController, startDestination = Routes.HOME) {
+    KlinReadTheme(darkTheme = dark) {
+        NavHost(navController = navController, startDestination = Routes.HOME) {
                 composable(Routes.HOME) {
                     HomeScaffold(
                         liveBrightness = liveBrightness.value,
@@ -196,7 +194,6 @@ private fun ReaderApp() {
             }
         }
     }
-}
 
 /**
  * The four-tab shell.
