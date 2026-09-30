@@ -66,7 +66,8 @@ $java = Join-Path $JdkHome 'bin\java.exe'
 # ── 3. 逐个运行测试类 ───────────────────────────────────────────────────────
 $testClassesToRun = @(
     'com.klin.read.reader.ChapterSplitterTest',
-    'com.klin.read.reader.TextDecoderTest'
+    'com.klin.read.reader.TextDecoderTest',
+    'com.klin.read.ui.music.MusicFilterTest'
 )
 
 $failed = @()

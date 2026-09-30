@@ -89,8 +89,8 @@ jobs:
         run: ./gradlew testDebugUnitTest --no-daemon
 
       # 防止「测试静默没跑却显示成功」：核对 XML 报告里的实际用例数。
-      # 目前应有 35 个（ChapterSplitterTest 18 + TextDecoderTest 17）。
-      # 要求精确等于 35 而不是「至少 30」：后者在整整丢掉一个测试类时仍会通过，
+      # 目前应有 43 个（ChapterSplitterTest 18 + TextDecoderTest 17 + MusicFilterTest 8）。
+      # 要求精确相等而不是「至少 N」：后者在整整丢掉一个测试类时仍会通过，
       # 而那正是这一步要拦的情况。新增测试时同步改这里的 EXPECTED。
       - name: 核对测试确实执行了
         run: |
@@ -100,7 +100,7 @@ jobs:
             exit 1
           fi
 
-          EXPECTED=35
+          EXPECTED=43
           TOTAL=$(grep -ho 'tests="[0-9]*"' "$RESULTS"/*.xml | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}')
           echo "执行的用例数：$TOTAL（预期 $EXPECTED）"
 

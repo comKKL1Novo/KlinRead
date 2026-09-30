@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -28,27 +29,30 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
     val isPlaying: StateFlow<Boolean> = MusicPlayer.isPlaying
 
+    /** The URI actually loaded in the player, or null when nothing is loaded. */
+    val playingUri: StateFlow<String?> = MusicPlayer.playingUri
+
     /** Free-text filter applied to the imported list. */
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
+
+    /**
+     * The imported list after applying the current query.
+     *
+     * Derived here, inside the flow, rather than by a plain function the screen
+     * calls during composition. The earlier version read `_query.value` directly
+     * from a non-observable `filtered()` call, so the result never recomposed and
+     * typing in the search box changed nothing on screen.
+     */
+    val visibleTracks: StateFlow<List<Track>> = combine(state, _query) { s, q ->
+        filterTracks(s.tracks, q)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
     fun setQuery(value: String) {
         _query.value = value
-    }
-
-    /**
-     * Tracks matching the current query.
-     *
-     * Search runs only over what the user imported; there is no catalogue and no
-     * network access anywhere in this app.
-     */
-    fun filtered(tracks: List<Track>): List<Track> {
-        val q = _query.value.trim()
-        if (q.isEmpty()) return tracks
-        return tracks.filter { it.title.contains(q, ignoreCase = true) }
     }
 
     fun import(uri: Uri) {
@@ -123,4 +127,20 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             }
         return name.substringBeforeLast('.').ifBlank { name }
     }
+}
+
+/**
+ * Tracks whose title contains [query], case-insensitively.
+ *
+ * A blank query returns everything, and surrounding whitespace is ignored so a
+ * stray space does not hide every track. Extracted as a top-level function so the
+ * matching rules can be unit-tested without a ViewModel or an Android runtime.
+ *
+ * Search runs only over what the user imported: there is no catalogue and no
+ * network access anywhere in this app.
+ */
+internal fun filterTracks(tracks: List<Track>, query: String): List<Track> {
+    val needle = query.trim()
+    if (needle.isEmpty()) return tracks
+    return tracks.filter { it.title.contains(needle, ignoreCase = true) }
 }

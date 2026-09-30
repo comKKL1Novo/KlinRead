@@ -77,9 +77,12 @@ class MusicStore(private val context: Context) {
             // Re-importing the same file should not duplicate it.
             if (existing.any { it.uri == track.uri }) return@edit
             prefs[Keys.TRACKS] = encodeTracks(existing + track)
-            if (prefs[Keys.CURRENT].isNullOrBlank()) {
-                prefs[Keys.CURRENT] = track.uri
-            }
+            // Deliberately does NOT select the new track.
+            //
+            // This used to set CURRENT to the first imported track, which made
+            // that row render as "已选中" the moment it was imported — before the
+            // user ever tapped play. "Selected" has to mean "chosen by the user",
+            // so nothing is current until something is actually played.
         }
     }
 
@@ -88,7 +91,10 @@ class MusicStore(private val context: Context) {
             val remaining = decodeTracks(prefs[Keys.TRACKS].orEmpty()).filterNot { it.uri == uri }
             prefs[Keys.TRACKS] = encodeTracks(remaining)
             if (prefs[Keys.CURRENT] == uri) {
-                prefs[Keys.CURRENT] = remaining.firstOrNull()?.uri.orEmpty()
+                // Clearing to "" rather than picking a neighbour: removing the
+                // selected track should leave nothing selected, not silently
+                // select a different one.
+                prefs[Keys.CURRENT] = ""
             }
         }
     }

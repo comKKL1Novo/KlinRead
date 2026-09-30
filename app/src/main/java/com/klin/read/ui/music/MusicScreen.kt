@@ -60,6 +60,9 @@ fun MusicScreen(viewModel: MusicViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    // The URI actually loaded in the player, which can lag behind the stored
+    // "current" while a track is still preparing.
+    val playingUri by viewModel.playingUri.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
 
@@ -76,7 +79,9 @@ fun MusicScreen(viewModel: MusicViewModel) {
         }
     }
 
-    val visible = viewModel.filtered(state.tracks)
+    // Reactive: the ViewModel derives this from the query flow, so typing filters
+    // the list immediately.
+    val visible by viewModel.visibleTracks.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -183,7 +188,7 @@ fun MusicScreen(viewModel: MusicViewModel) {
                     TrackRow(
                         track = track,
                         isCurrent = track.uri == state.currentUri,
-                        isPlaying = isPlaying && track.uri == state.currentUri,
+                        isPlaying = isPlaying && track.uri == playingUri,
                         onToggle = { viewModel.toggleCurrent(track) },
                         onRemove = { viewModel.remove(track) }
                     )
@@ -214,7 +219,7 @@ private fun TrackRow(
             title = track.title,
             subtitle = when {
                 isPlaying -> "正在播放"
-                isCurrent -> "已选中"
+                isCurrent -> "已暂停"
                 else -> "点击播放"
             },
             onClick = onToggle,
