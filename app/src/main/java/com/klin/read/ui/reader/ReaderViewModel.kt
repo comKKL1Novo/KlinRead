@@ -10,6 +10,10 @@ import com.klin.read.data.ReaderSettings
 import com.klin.read.reader.BookParser
 import com.klin.read.reader.Chapter
 import com.klin.read.reader.ParsedBook
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +21,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** What the reading screen renders. */
 sealed interface ReaderUiState {
@@ -87,7 +92,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
 
             dao.touch(bookId)
 
-            val saved = prefs.position(bookId).first().chapterIndex
+            val position = prefs.position(bookId).first()
 
             val parsed = try {
                 BookParser.parse(getApplication(), Uri.parse(entity.uri), entity.title)
@@ -96,12 +101,29 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
-            val startChapter = saved.coerceIn(0, (parsed.chapters.size - 1).coerceAtLeast(0))
+            val startChapter = position.chapterIndex
+                .coerceIn(0, (parsed.chapters.size - 1).coerceAtLeast(0))
             currentChapter = startChapter
+
+            /*
+             * Restore the paragraph too, not just the chapter.
+             *
+             * Only `chapterIndex` used to be read back, so reopening a book always
+             * landed at the top of the chapter you left -- the exact character offset
+             * that had just been saved was discarded. Combined with the shelf's
+             * progress bar reading that same offset, the two disagreed: the bar said
+             * you were 60% in while the reader opened at the chapter start.
+             */
+            val startParagraph = paragraphIndexAt(
+                parsed.text,
+                parsed.chapters[startChapter],
+                position.charOffset
+            )
 
             _state.value = ReaderUiState.Ready(
                 book = parsed,
                 chapterIndex = startChapter,
+                paragraphIndex = startParagraph,
                 settings = latestSettings
             )
         }
@@ -188,12 +210,55 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { prefs.setTheme(theme) }
     }
 
-    /** Saves the current chapter's starting offset as the reading position. */
+    /**
+     * Saves how far into the book the reader actually is.
+     *
+     * The offset is the START OF THE PARAGRAPH being looked at, not the start of the
+     * chapter. Saving `chapter.start` -- which is what this used to do -- meant the
+     * shelf only ever learned which chapter you were in, so progress read 0% for the
+     * whole of chapter one and then jumped in chapter-sized steps. On a
+     * single-chapter book (most TXT files, and any EPUB whose spine is one document)
+     * it was 0% forever, which is what "EPUB 格式的书不能正常识别读书状态" describes.
+     *
+     * Paragraph index is what the reader actually tracks while scrolling, so
+     * converting it back to a character offset is exact -- provided the same
+     * splitting function is used, which is why [splitParagraphs] is shared rather
+     * than reimplemented here.
+     */
     fun persistPosition() {
         val current = _state.value as? ReaderUiState.Ready ?: return
         if (bookId < 0) return
-        viewModelScope.launch {
-            prefs.savePosition(bookId, current.chapter.start, current.chapterIndex)
+
+        val chapter = current.chapterIndex
+        val offset = paragraphOffset(current.book.text, current.chapter, current.paragraphIndex)
+
+        /*
+         * Written on an application-scoped coroutine, NOT viewModelScope.
+         *
+         * The main caller is `onDispose` when the reader screen is left, and by then
+         * the ViewModel is being cleared -- `viewModelScope` is cancelled at that
+         * moment, so a `launch` there could be torn down before the DataStore write
+         * committed. Verified on device: the write logged and the shelf never saw
+         * it, so a book stayed in 未读 after being read.
+         *
+         * The work is a few hundred bytes to a local file, so it does not need to be
+         * tied to a UI lifetime. NonCancellable keeps the write atomic even if the
+         * scope is cancelled mid-flight.
+         */
+        appScope.launch {
+            withContext(NonCancellable) {
+                prefs.savePosition(bookId, offset, chapter)
+            }
         }
+    }
+
+    private companion object {
+        /**
+         * Scope for writes that must outlive the screen.
+         *
+         * Tied to the process rather than to a ViewModel, which is the point: the
+         * position is saved precisely as the reader screen goes away.
+         */
+        val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 }

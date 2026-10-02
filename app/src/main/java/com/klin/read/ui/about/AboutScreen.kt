@@ -34,12 +34,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.klin.read.R
+import com.klin.read.ui.design.Clearance
 import com.klin.read.ui.design.Hairline
 import com.klin.read.ui.design.LocalColors
+import com.klin.read.ui.design.MinTouchTarget
 import com.klin.read.ui.design.Panel
 import com.klin.read.ui.design.PrimaryButton
+import com.klin.read.ui.design.Radius
 import com.klin.read.ui.design.ScreenTitle
 import com.klin.read.ui.design.SectionLabel
 import com.klin.read.ui.design.Space
@@ -57,7 +61,7 @@ fun AboutScreen() {
             start = Space.lg,
             end = Space.lg,
             top = Space.xl,
-            bottom = 140.dp
+            bottom = Clearance.listBottom
         ),
         verticalArrangement = Arrangement.spacedBy(Space.sm)
     ) {
@@ -67,7 +71,9 @@ fun AboutScreen() {
                 text = "这个阅读器背后的人和事",
                 color = c.inkMuted,
                 fontSize = 13.sp,
-                modifier = Modifier.padding(top = 6.dp)
+                letterSpacing = (-0.011).em,
+                // 4dp is the grid's half-step; the previous 6dp was off-grid.
+                modifier = Modifier.padding(top = Space.xs)
             )
         }
 
@@ -116,7 +122,7 @@ fun AboutScreen() {
     if (showDonate) {
         AlertDialog(
             onDismissRequest = { showDonate = false },
-            title = { Text("捐赠", fontWeight = FontWeight.SemiBold) },
+            title = { Text("捐赠", fontWeight = FontWeight.SemiBold, letterSpacing = (-0.011).em) },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Image(
@@ -125,20 +131,29 @@ fun AboutScreen() {
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 380.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            // 380dp -> 384dp (8 x 48): the cap is an arbitrary
+                            // image bound, so it rounds to the grid with no
+                            // visible change on any phone.
+                            .heightIn(max = 384.dp)
+                            .clip(RoundedCornerShape(Radius.button))
                     )
                     Spacer(Modifier.height(Space.md))
                     Text(
                         text = "扫码请作者喝一杯，完全自愿。",
                         color = c.inkMuted,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        letterSpacing = (-0.011).em
                     )
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showDonate = false }) {
-                    Text("关闭", color = c.accent, fontWeight = FontWeight.Medium)
+                    Text(
+                        "关闭",
+                        color = c.accent,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = (-0.011).em
+                    )
                 }
             }
         )
@@ -165,11 +180,18 @@ private fun CreditRow(
         avatar()
         Column(Modifier.weight(1f).padding(start = Space.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(name, color = c.ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    name,
+                    color = c.ink,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = (-0.011).em
+                )
                 Text(
                     text = role,
                     color = c.inkFaint,
                     fontSize = 11.5.sp,
+                    letterSpacing = (-0.011).em,
                     modifier = Modifier.padding(start = Space.sm)
                 )
             }
@@ -177,17 +199,21 @@ private fun CreditRow(
                 text = note,
                 color = c.inkMuted,
                 fontSize = 13.sp,
-                modifier = Modifier.padding(top = 3.dp)
+                letterSpacing = (-0.011).em,
+                // 35dp of row content already clears the 44dp touch target, so
+                // the 3dp nudge rounds UP to the 4dp half-step rather than down.
+                modifier = Modifier.padding(top = Space.xs)
             )
             Text(
                 text = hint,
                 color = c.accent,
                 fontSize = 11.5.sp,
-                modifier = Modifier.padding(top = 4.dp)
+                letterSpacing = (-0.011).em,
+                modifier = Modifier.padding(top = Space.xs)
             )
         }
         // Chevron, so the row reads as tappable.
-        Text("›", color = c.inkFaint, fontSize = 20.sp)
+        Text("›", color = c.inkFaint, fontSize = 20.sp, letterSpacing = (-0.011).em)
     }
 }
 
@@ -210,7 +236,7 @@ private fun AuthorAvatar() {
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = Modifier
-            .size(44.dp)
+            .size(MinTouchTarget)
             .clip(CircleShape)
     )
 }
@@ -221,11 +247,17 @@ private fun InitialAvatar(initials: String) {
     val c = LocalColors.current
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(MinTouchTarget)
             .clip(CircleShape)
             .background(c.surfaceMuted),
         contentAlignment = Alignment.Center
     ) {
-        Text(initials, color = c.inkMuted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(
+            initials,
+            color = c.inkMuted,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = (-0.011).em
+        )
     }
 }

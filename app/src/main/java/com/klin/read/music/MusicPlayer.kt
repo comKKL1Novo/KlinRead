@@ -43,6 +43,14 @@ object MusicPlayer {
         kotlinx.coroutines.Dispatchers.Main + kotlinx.coroutines.SupervisorJob()
     )
 
+    /** Deadline guard for a `prepareAsync` that never calls back. */
+    private var prepareTimeoutJob: kotlinx.coroutines.Job? = null
+
+    /** Set once a track is actually ready, so the prepare timeout can stand down. */
+    private var prepared = false
+
+    private const val PREPARE_TIMEOUT_MS = 8_000L
+
     /**
      * Ramps the player volume between [from] and [to].
      *
@@ -70,6 +78,28 @@ object MusicPlayer {
         releaseInternal()
         _error.value = null
 
+        /*
+         * Check the source is still readable BEFORE handing it to MediaPlayer.
+         *
+         * MediaPlayer reports a missing file through a logcat warning and never
+         * calls the error listener, so `setDataSource` "succeeds" and the prepared
+         * callback never fires. The track then sits at "已暂停" forever with no
+         * message -- indistinguishable from a broken button, which is exactly how
+         * this was reported. An imported URI stays in the store after the user
+         * deletes or moves the underlying file, so this is the normal case rather
+         * than an edge case.
+         */
+        val readable = runCatching {
+            context.contentResolver.openAssetFileDescriptor(Uri.parse(uri), "r")?.use { true } ?: false
+        }.getOrDefault(false)
+
+        if (!readable) {
+            _isPlaying.value = false
+            _playingUri.value = null
+            _error.value = "找不到这个音轨，文件可能已被删除或移动"
+            return
+        }
+
         val mp = MediaPlayer()
         try {
             mp.setAudioAttributes(
@@ -82,6 +112,8 @@ object MusicPlayer {
             mp.isLooping = loopEnabled
             mp.setVolume(0f, 0f)
             mp.setOnPreparedListener {
+                prepared = true
+                prepareTimeoutJob?.cancel()
                 // Resume where the track was left off, unless the stored position
                 // is past the end of this file.
                 if (startMs > 0 && startMs < it.duration) {
@@ -109,6 +141,32 @@ object MusicPlayer {
             mp.prepareAsync()
             player = mp
             currentUri = uri
+
+            /*
+             * Timeout for a prepare that never calls back.
+             *
+             * MediaPlayer can accept a data source and then simply never fire
+             * onPrepared or onError -- a truncated file and an unsupported codec
+             * both do this. Without a deadline the row stayed at "已暂停" forever
+             * with no message, which is the state this feature was reported in.
+             *
+             * 8s is generous: a local file prepares in well under a second, so
+             * anything still pending is not going to succeed.
+             */
+            prepareTimeoutJob?.cancel()
+            prepareTimeoutJob = fadeScope.launch {
+                kotlinx.coroutines.delay(PREPARE_TIMEOUT_MS)
+                if (player === mp && !prepared && _error.value == null) {
+                    runCatching { mp.release() }
+                    if (player === mp) {
+                        player = null
+                        currentUri = null
+                    }
+                    _isPlaying.value = false
+                    _playingUri.value = null
+                    _error.value = "这个音轨无法播放，可能已损坏或格式不支持"
+                }
+            }
         } catch (e: Exception) {
             // setDataSource throws for a URI the app no longer has access to,
             // which is the usual cause when a persisted grant is missing.
@@ -116,6 +174,7 @@ object MusicPlayer {
             player = null
             currentUri = null
             _isPlaying.value = false
+            _playingUri.value = null
             _error.value = "无法打开这个音轨：${e.message ?: e::class.simpleName}"
         }
     }
@@ -222,6 +281,9 @@ object MusicPlayer {
     }
 
     private fun releaseInternal() {
+        prepareTimeoutJob?.cancel()
+        prepareTimeoutJob = null
+        prepared = false
         runCatching {
             player?.let {
                 if (it.isPlaying) it.stop()

@@ -34,9 +34,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.klin.read.data.PageTurnMode
 import com.klin.read.data.ReaderSettings
+import com.klin.read.ui.design.Space
 
 /**
  * Renders the chapter using the chosen page-turn mode.
@@ -209,7 +211,7 @@ private fun PagedReader(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 14.dp),
+                .padding(horizontal = Space.lg, vertical = Space.md),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             val shownPage = (pagerState.currentPage + 1)
@@ -217,12 +219,14 @@ private fun PagedReader(
             Text(
                 text = "$shownPage / $pageCount",
                 color = palette.secondary,
-                fontSize = 11.sp
+                fontSize = 11.sp,
+                letterSpacing = (-0.011).em
             )
             Text(
                 text = "左右滑动翻页",
                 color = palette.secondary,
-                fontSize = 11.sp
+                fontSize = 11.sp,
+                letterSpacing = (-0.011).em
             )
         }
     }
@@ -263,6 +267,9 @@ private fun PageSurface(
             Modifier
                 .fillMaxSize()
                 .padding(horizontal = settings.marginDp.dp)
+                // Structural clearance for the reader's own top and bottom bars.
+                // These are not spacing-scale values: they reserve room for chrome
+                // that floats over the page, so they stay literals.
                 .padding(top = 56.dp, bottom = 44.dp)
         ) {
             if (title != null) {
@@ -271,12 +278,13 @@ private fun PageSurface(
                     color = palette.text,
                     fontSize = (settings.fontSizeSp + 3).sp,
                     fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.022).em,
                     lineHeight = ((settings.fontSizeSp + 3) * settings.lineHeightMultiplier).sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp)
+                        .padding(bottom = Space.md)
                 )
             }
 
@@ -286,6 +294,7 @@ private fun PageSurface(
                     color = palette.text,
                     fontSize = settings.fontSizeSp.sp,
                     lineHeight = (settings.fontSizeSp * settings.lineHeightMultiplier).sp,
+                    letterSpacing = (-0.011).em,
                     softWrap = true,
                     modifier = Modifier
                         .fillMaxWidth()

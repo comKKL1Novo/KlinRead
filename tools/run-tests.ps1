@@ -67,6 +67,11 @@ $java = Join-Path $JdkHome 'bin\java.exe'
 $testClassesToRun = @(
     'com.klin.read.reader.ChapterSplitterTest',
     'com.klin.read.reader.TextDecoderTest',
+    'com.klin.read.reader.FormatDetectorTest',
+    'com.klin.read.reader.EpubPositionRoundTripTest',
+    'com.klin.read.ui.reader.ReadingPaletteContrastTest',
+    'com.klin.read.ui.design.PaletteContrastTest',
+    'com.klin.read.ui.shelf.ShelfStartedTest',
     'com.klin.read.ui.music.MusicFilterTest'
 )
 

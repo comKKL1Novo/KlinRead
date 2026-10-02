@@ -33,8 +33,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.klin.read.R
+import com.klin.read.ui.design.Space
 import kotlinx.coroutines.delay
 
 /**
@@ -120,7 +122,7 @@ fun SplashScreen(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 48.dp)
+            modifier = Modifier.padding(horizontal = Space.xxl)
         ) {
             // The icon is drawn as a circle, with no backing plate.
             //
@@ -137,17 +139,18 @@ fun SplashScreen(
                     .clip(CircleShape)
             )
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(Space.md))
 
             Text(
                 text = "KlinRead",
                 color = ink,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.022).em,
                 modifier = Modifier.alpha(titleAlpha)
             )
 
-            Spacer(Modifier.height(34.dp))
+            Spacer(Modifier.height(Space.xl))
 
             Box(
                 modifier = Modifier
@@ -165,13 +168,14 @@ fun SplashScreen(
                 )
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(Space.md))
 
             // Line of the day: smaller and dimmer than the title.
             Text(
                 text = caption,
                 color = faint,
                 fontSize = 12.sp,
+                letterSpacing = (-0.011).em,
                 textAlign = TextAlign.Center,
                 lineHeight = 18.sp,
                 modifier = Modifier

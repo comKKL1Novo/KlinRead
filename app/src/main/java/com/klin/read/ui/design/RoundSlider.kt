@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -78,12 +79,21 @@ fun RoundSlider(
 
     // The value under the finger, so release can report it even though the
     // caller's `value` has not caught up yet.
+    //
+    // Reset whenever the caller's value changes underneath us (first load from
+    // DataStore, a reset button, a theme switch). Without this the thumb keeps the
+    // value captured at first composition, so a slider whose real value arrives
+    // asynchronously shows a stale position until it is touched.
     var draggedValue by remember { mutableStateOf(value) }
+    LaunchedEffect(value) { draggedValue = value }
     val current = draggedValue
 
     // Tracked in pixels so the thumb can be positioned without a dp round-trip.
     var trackWidthPx by remember { mutableIntStateOf(0) }
     val thumbPx = with(LocalDensity.current) { thumbSize.toPx() }
+
+    // Where the thumb should sit, 0f..1f across its usable travel.
+    val shownFraction = ((current - valueRange.start) / span).coerceIn(0f, 1f)
 
     Box(
         modifier = modifier
@@ -144,16 +154,22 @@ fun RoundSlider(
         )
         // Round thumb, positioned in pixels: converting to dp here would misplace
         // it at any density other than 1x.
+        //
+        // `trackWidthPx` MUST be read inside the layout lambda. It arrives one
+        // frame after the first composition (onSizeChanged fires later, and the
+        // layout modifier measures before that), so on the very first pass the
+        // travel is 0 and the thumb is placed at the far left -- a 100% brightness
+        // looked like 0%. Reading the state here makes the layout re-run once the
+        // width is known, which is what actually fixes it. An earlier version read
+        // it outside the lambda and only looked right after the user happened to
+        // touch the slider.
         Box(
             Modifier
                 .layout { measurable, constraints ->
                     val placeable = measurable.measure(constraints)
                     val travel = (trackWidthPx - placeable.width).coerceAtLeast(0)
-                    // Follow the value under the finger while dragging; fall back
-                    // to the caller's value otherwise.
-                    val shown = ((current - valueRange.start) / span).coerceIn(0f, 1f)
                     layout(placeable.width, placeable.height) {
-                        placeable.placeRelative((travel * shown).toInt(), 0)
+                        placeable.placeRelative((travel * shownFraction).toInt(), 0)
                     }
                 }
                 .size(thumbSize)

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,10 +48,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.klin.read.ui.design.MinTouchTarget
+import com.klin.read.ui.design.Radius
 import com.klin.read.ui.design.RoundSlider
+import com.klin.read.ui.design.Size
 import com.klin.read.ui.design.SliderColors
+import com.klin.read.ui.design.Space
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -207,14 +213,14 @@ private fun SheetHandle(color: Color) {
     Box(
         Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = Space.sm),
         contentAlignment = Alignment.Center
     ) {
         Box(
             Modifier
-                .width(34.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .width(Size.sheetHandleWidth)
+                .height(Size.sheetHandleHeight)
+                .clip(RoundedCornerShape(Size.sheetHandleHeight / 2))
                 .background(color)
         )
     }
@@ -233,7 +239,7 @@ private fun ReaderTopBar(
             .fillMaxWidth()
             .background(palette.background.copy(alpha = 0.97f))
             .statusBarsPadding()
-            .padding(horizontal = 6.dp, vertical = 6.dp),
+            .padding(horizontal = Space.sm, vertical = Space.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ReaderIconButton(onBack) {
@@ -245,6 +251,7 @@ private fun ReaderTopBar(
             color = palette.text,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
+            letterSpacing = (-0.011).em,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -261,13 +268,16 @@ private fun ReaderTopBar(
 private fun ReaderIconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(Radius.button))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick
             )
-            .padding(12.dp),
+            // 44dp keeps these icon buttons on the skill's minimum touch target;
+            // the visible glyph stays small because the padding absorbs the rest.
+            .defaultMinSize(minWidth = MinTouchTarget, minHeight = MinTouchTarget)
+            .padding(Space.xs),
         contentAlignment = Alignment.Center
     ) {
         content()
@@ -296,15 +306,21 @@ private fun ReaderControlBar(
             .fillMaxWidth()
             .background(palette.background.copy(alpha = 0.97f))
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Space.md, vertical = Space.sm)
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 text = if (chapterCount > 0) "${shown.toInt() + 1} / $chapterCount 章" else "—",
                 color = palette.secondary,
-                fontSize = 12.sp
+                fontSize = 12.sp,
+                letterSpacing = (-0.011).em
             )
-            Text(text = "拖动跳章", color = palette.secondary, fontSize = 11.sp)
+            Text(
+                text = "拖动跳章",
+                color = palette.secondary,
+                fontSize = 11.sp,
+                letterSpacing = (-0.011).em
+            )
         }
 
         RoundSlider(
@@ -348,21 +364,24 @@ private fun ReaderActionButton(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(Radius.button))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 enabled = enabled,
                 onClick = onClick
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .defaultMinSize(minHeight = MinTouchTarget)
+            .padding(horizontal = Space.md, vertical = Space.sm),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             color = if (enabled) palette.text else palette.secondary.copy(alpha = 0.35f),
             fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            letterSpacing = (-0.011).em,
+            maxLines = 1
         )
     }
 }
@@ -384,7 +403,7 @@ private fun TocSheet(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 22.dp, vertical = 10.dp),
+                .padding(horizontal = Space.lg, vertical = Space.sm),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -392,17 +411,19 @@ private fun TocSheet(
                 text = "目录",
                 color = palette.text,
                 fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.022).em
             )
             Text(
                 text = "共 ${chapters.size} 章",
                 color = palette.secondary,
-                fontSize = 12.sp
+                fontSize = 12.sp,
+                letterSpacing = (-0.011).em
             )
         }
 
         LazyColumn(
-            contentPadding = PaddingValues(bottom = 28.dp),
+            contentPadding = PaddingValues(bottom = Space.xl),
             modifier = Modifier.fillMaxWidth()
         ) {
             itemsIndexed(chapters) { index, title ->
@@ -411,20 +432,23 @@ private fun TocSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onSelect(index) }
-                        .padding(horizontal = 22.dp, vertical = 14.dp),
+                        .defaultMinSize(minHeight = MinTouchTarget)
+                        .padding(horizontal = Space.lg, vertical = Space.md),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "${index + 1}",
                         color = palette.secondary,
                         fontSize = 12.sp,
-                        modifier = Modifier.padding(end = 14.dp)
+                        letterSpacing = (-0.011).em,
+                        modifier = Modifier.padding(end = Space.md)
                     )
                     Text(
                         text = title,
                         color = if (isCurrent) palette.text else palette.text.copy(alpha = 0.78f),
                         fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
                         fontSize = 15.sp,
+                        letterSpacing = (-0.011).em,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)

@@ -38,40 +38,45 @@ object BookParser {
         val resolver = context.contentResolver
         val extension = displayName.substringAfterLast('.', "").uppercase()
 
-        // Sniff on a separate stream so the format decision never depends on
-        // being able to rewind the resolver's stream.
-        val format = resolver.openInputStream(uri)?.use { sniffStream ->
-            FormatDetector.detect(sniffStream, extension)
-        } ?: throw java.io.IOException("无法打开文件")
+        /*
+         * The file is opened once, and the parse works from those bytes.
+         *
+         * This used to open the URI two or three times per import: once to sniff the
+         * format, once inside `readAll`, and for some formats once more in the
+         * parser. That works against a permissive provider and fails against a
+         * strict one -- OPPO's document picker hands back a short-lived grant, so a
+         * second `openInputStream` returns null and the reader reported
+         * "无法打开文件" for a file it had just imported successfully.
+         *
+         * EPUB is not buffered: it is parsed straight from a stream, because a book
+         * can be tens of megabytes and avoiding that allocation is the entire point
+         * of the streaming parser. It gets exactly one open of its own.
+         */
+        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: throw java.io.IOException("无法打开文件")
+
+        val format = FormatDetector.detect(bytes.inputStream(), extension)
 
         val baseTitle = displayName.substringBeforeLast('.').trim()
             .takeIf { it.isNotEmpty() && !it.startsWith("content") }
             ?: "未命名"
 
-        when (format) {
-            BookFormat.EPUB -> resolver.openInputStream(uri)?.use { stream ->
-                EpubParser.parse(stream, baseTitle)
-            } ?: throw java.io.IOException("无法打开文件")
+        return@withContext when (format) {
+            BookFormat.EPUB -> EpubParser.parse(bytes.inputStream(), baseTitle)
 
-            BookFormat.TXT -> textBook(baseTitle, TextDecoder.decode(readAll(resolver, uri)))
+            BookFormat.TXT -> textBook(baseTitle, TextDecoder.decode(bytes))
 
-            BookFormat.FB2 -> textBook(baseTitle, ExtraFormats.parseFb2(readAll(resolver, uri)))
+            BookFormat.FB2 -> textBook(baseTitle, ExtraFormats.parseFb2(bytes))
 
-            BookFormat.HTML -> textBook(baseTitle, ExtraFormats.parseHtml(readAll(resolver, uri)))
+            BookFormat.HTML -> textBook(baseTitle, ExtraFormats.parseHtml(bytes))
 
-            BookFormat.MOBI -> textBook(baseTitle, ExtraFormats.parseMobi(readAll(resolver, uri)))
+            BookFormat.MOBI -> textBook(baseTitle, ExtraFormats.parseMobi(bytes))
 
-            BookFormat.UMD -> textBook(baseTitle, ExtraFormats.parseUmd(readAll(resolver, uri)))
+            BookFormat.UMD -> textBook(baseTitle, ExtraFormats.parseUmd(bytes))
 
             null -> throw UnsupportedFormatException(extension.ifEmpty { "未知" })
         }
     }
-
-    private fun readAll(
-        resolver: android.content.ContentResolver,
-        uri: Uri
-    ): ByteArray = resolver.openInputStream(uri)?.use { it.readBytes() }
-        ?: throw java.io.IOException("无法打开文件")
 
     /** Wraps extracted prose into a book, splitting chapters the usual way. */
     private fun textBook(baseTitle: String, text: String): ParsedBook {

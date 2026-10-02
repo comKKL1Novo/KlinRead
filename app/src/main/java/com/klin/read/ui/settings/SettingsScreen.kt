@@ -16,9 +16,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.klin.read.BuildConfig
+import com.klin.read.ui.design.Clearance
 import com.klin.read.ui.design.Chip
 import com.klin.read.ui.design.Hairline
 import com.klin.read.ui.design.ListRow
@@ -44,7 +46,7 @@ fun SettingsScreen(
             start = Space.lg,
             end = Space.lg,
             top = Space.xl,
-            bottom = 140.dp
+            bottom = Clearance.listBottom
         ),
         verticalArrangement = Arrangement.spacedBy(Space.sm)
     ) {
@@ -54,7 +56,9 @@ fun SettingsScreen(
                 text = "阅读偏好和外观",
                 color = c.inkMuted,
                 fontSize = 13.sp,
-                modifier = Modifier.padding(top = 6.dp)
+                letterSpacing = (-0.011).em,
+                // 4dp is the grid's half-step; the previous 6dp was off-grid.
+                modifier = Modifier.padding(top = Space.xs)
             )
         }
 
@@ -152,8 +156,13 @@ private fun BrightnessRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("亮度", color = c.ink, fontSize = 15.sp)
-            Text("${(value * 100).toInt()}%", color = c.inkMuted, fontSize = 13.sp)
+            Text("亮度", color = c.ink, fontSize = 15.sp, letterSpacing = (-0.011).em)
+            Text(
+                "${(value * 100).toInt()}%",
+                color = c.inkMuted,
+                fontSize = 13.sp,
+                letterSpacing = (-0.011).em
+            )
         }
         RoundSlider(
             value = value,

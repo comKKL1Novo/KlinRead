@@ -82,6 +82,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             store.setCurrent(track.uri)
             MusicPlayer.play(getApplication(), track.uri)
+            surfacePlaybackError()
         }
     }
 
@@ -89,6 +90,22 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             store.setCurrent(track.uri)
             MusicPlayer.toggle(getApplication(), track.uri)
+            surfacePlaybackError()
+        }
+    }
+
+    /**
+     * Turns a playback failure into a visible message.
+     *
+     * [MusicPlayer] reports failure on its own flow because it is a singleton with
+     * no ViewModel reference. Nothing was reading that flow, so a track whose file
+     * had been deleted failed silently -- the row stayed at "已暂停" and the tap
+     * looked like a dead button.
+     */
+    private fun surfacePlaybackError() {
+        MusicPlayer.error.value?.let {
+            _message.value = it
+            MusicPlayer.consumeError()
         }
     }
 

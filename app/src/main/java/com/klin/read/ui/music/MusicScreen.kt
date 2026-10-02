@@ -33,9 +33,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.klin.read.data.Track
+import com.klin.read.ui.design.Clearance
 import com.klin.read.ui.design.EmptyHint
 import com.klin.read.ui.design.FlatTextField
 import com.klin.read.ui.design.Hairline
@@ -44,6 +46,7 @@ import com.klin.read.ui.design.LocalColors
 import com.klin.read.ui.design.Panel
 import com.klin.read.ui.design.PrimaryButton
 import com.klin.read.ui.design.QuietButton
+import com.klin.read.ui.design.Radius
 import com.klin.read.ui.design.ScreenTitle
 import com.klin.read.ui.design.SectionLabel
 import com.klin.read.ui.design.Space
@@ -90,7 +93,7 @@ fun MusicScreen(viewModel: MusicViewModel) {
                 start = Space.lg,
                 end = Space.lg,
                 top = Space.xl,
-                bottom = 140.dp
+                bottom = Clearance.listBottom
             ),
             verticalArrangement = Arrangement.spacedBy(Space.sm)
         ) {
@@ -100,7 +103,9 @@ fun MusicScreen(viewModel: MusicViewModel) {
                     text = "只播放你自己导入的音轨",
                     color = c.inkMuted,
                     fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 6.dp, bottom = Space.md)
+                    letterSpacing = (-0.011).em,
+                    // 4dp is the grid's half-step; the previous 6dp was off-grid.
+                    modifier = Modifier.padding(top = Space.xs, bottom = Space.md)
                 )
             }
 
@@ -140,12 +145,22 @@ fun MusicScreen(viewModel: MusicViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text("读书时自动播放", color = c.ink, fontSize = 15.sp)
+                            Text(
+                                "读书时自动播放",
+                                color = c.ink,
+                                fontSize = 15.sp,
+                                letterSpacing = (-0.011).em
+                            )
                             Text(
                                 text = "打开书籍后自动开始播放当前音轨",
                                 color = c.inkMuted,
                                 fontSize = 12.5.sp,
-                                modifier = Modifier.padding(top = 3.dp)
+                                letterSpacing = (-0.011).em,
+                                // 3dp rounds UP to the 4dp half-step here: the
+                                // row's 42dp of content is already close to the
+                                // 44dp touch target, so rounding down would eat
+                                // into the label.
+                                modifier = Modifier.padding(top = Space.xs)
                             )
                         }
                         Switch(
@@ -159,7 +174,12 @@ fun MusicScreen(viewModel: MusicViewModel) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("单曲循环", color = c.ink, fontSize = 15.sp)
+                        Text(
+                            "单曲循环",
+                            color = c.ink,
+                            fontSize = 15.sp,
+                            letterSpacing = (-0.011).em
+                        )
                         Switch(
                             checked = state.loop,
                             onCheckedChange = viewModel::setLoop
@@ -200,7 +220,7 @@ fun MusicScreen(viewModel: MusicViewModel) {
             hostState = snackbar,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 104.dp)
+                .padding(bottom = Clearance.bottomBar)
         )
     }
 }
@@ -226,14 +246,19 @@ private fun TrackRow(
             leading = {
                 Box(
                     Modifier
+                        // Pills stay 999dp: that is the one shape the skill
+                        // reserves for chips and badges.
                         .clip(RoundedCornerShape(999.dp))
                         .background(if (isCurrent) c.accent else c.surfaceMuted)
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        // 10dp/6dp -> 8dp/4dp: both sat off the 8pt grid, so the
+                        // badge keeps its proportions and lands on it.
+                        .padding(horizontal = Space.sm, vertical = Space.xs)
                 ) {
                     Text(
                         text = if (isPlaying) "❚❚" else "▶",
                         color = if (isCurrent) c.accentInk else c.inkMuted,
-                        fontSize = 11.sp
+                        fontSize = 11.sp,
+                        letterSpacing = (-0.011).em
                     )
                 }
             },
@@ -242,9 +267,10 @@ private fun TrackRow(
                     text = "移除",
                     color = c.inkFaint,
                     fontSize = 12.5.sp,
+                    letterSpacing = (-0.011).em,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(Radius.small))
                         .clickable(onClick = onRemove)
                         // Material's minimum touch target: the label is small, so
                         // the tap area is widened to 48dp rather than relying on

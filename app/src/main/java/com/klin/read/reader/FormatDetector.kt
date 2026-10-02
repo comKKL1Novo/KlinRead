@@ -74,7 +74,22 @@ object FormatDetector {
         // only after the binary-container signatures above.
         if (bytes.any { it == 0.toByte() }) return null
 
-        val text = runCatching { TextDecoder.decode(bytes) }.getOrNull().orEmpty()
+        /*
+         * Trim a half-read character off the end before decoding.
+         *
+         * The 4096-byte window is a fixed byte count, so it lands mid-character
+         * roughly two times in three for Chinese text (a UTF-8 CJK character is
+         * three bytes). `TextDecoder.decode` then fails on the truncated tail, the
+         * UTF-8 check below fails with it, and a perfectly ordinary novel is
+         * rejected as an unrecognised format -- which is what happened to a plain
+         * 24 KB TXT file.
+         *
+         * Backing off to the last complete character costs at most two bytes of
+         * sniffing and makes the check describe the text rather than the cut.
+         */
+        val aligned = bytes.trimToCharacterBoundary()
+
+        val text = runCatching { TextDecoder.decode(aligned) }.getOrNull().orEmpty()
         val trimmed = text.trimStart()
 
         if (trimmed.contains("<FictionBook", ignoreCase = true)) return BookFormat.FB2
@@ -100,7 +115,10 @@ object FormatDetector {
             }
         }
 
-        return if (TextDecoder.isValidUtf8(bytes) || looksLikeGbk(bytes)) {
+        // Character-aligned bytes, not the raw window: the truncation that
+        // `aligned` removes is exactly what made `isValidUtf8` fail here and
+        // reject a valid novel. Checking the raw array would undo the fix above.
+        return if (TextDecoder.isValidUtf8(aligned) || looksLikeGbk(aligned)) {
             BookFormat.TXT
         } else {
             null
@@ -136,5 +154,68 @@ object FormatDetector {
     private fun ByteArray.startsWith(prefix: ByteArray): Boolean {
         if (size < prefix.size) return false
         return prefix.indices.all { this[it] == prefix[it] }
+    }
+
+    /**
+     * Drops a trailing partial UTF-8 sequence, if there is one.
+     *
+     * Two shapes have to be handled, and only the first was covered originally --
+     * which is why a real 24 KB Chinese TXT still failed after the first attempt:
+     *
+     *   1. **A truncated continuation run.** The tail is one or more `10xxxxxx`
+     *      bytes whose lead byte is present but whose character is short of the
+     *      bytes the lead declares.
+     *   2. **A bare lead byte.** The window ends exactly on the first byte of a
+     *      multi-byte character, with none of its continuation bytes present. The
+     *      device file that exposed this ends at byte 4096 with `0xE7`, the lead of
+     *      a three-byte character.
+     *
+     * Both make `isValidUtf8` return false -- deliberately, since it validates a
+     * whole buffer -- and that false is what rejected the book.
+     *
+     * Returns the array unchanged when the tail is already a complete character, so
+     * ASCII and aligned text pay nothing for this.
+     */
+    private fun ByteArray.trimToCharacterBoundary(): ByteArray {
+        if (isEmpty()) return this
+
+        // How many trailing 10xxxxxx bytes there are, capped at the 3 that can
+        // follow any lead byte.
+        var continuation = 0
+        while (continuation < 3 && continuation < size) {
+            val b = this[size - 1 - continuation].toInt() and 0xFF
+            if (b and 0xC0 != 0x80) break
+            continuation++
+        }
+
+        // Case 2: nothing but a lead byte at the very end.
+        if (continuation == 0) {
+            val lead = this[size - 1].toInt() and 0xFF
+            return if (neededBytes(lead) > 1) copyOf(size - 1) else this
+        }
+
+        // Case 1: the byte before the continuation run should be the lead.
+        val leadIndex = size - 1 - continuation
+        if (leadIndex < 0) return this
+        val lead = this[leadIndex].toInt() and 0xFF
+
+        val needed = neededBytes(lead)
+        if (needed == 0) return this // not a valid lead; leave the data alone
+
+        // continuation counts bytes AFTER the lead, so the character has
+        // 1 + continuation bytes present in total.
+        return if (1 + continuation < needed) copyOf(leadIndex) else this
+    }
+
+    /**
+     * Total byte length of the character [lead] introduces, or 0 if it cannot
+     * introduce one.
+     */
+    private fun neededBytes(lead: Int): Int = when {
+        lead and 0x80 == 0x00 -> 1
+        lead and 0xE0 == 0xC0 -> 2
+        lead and 0xF0 == 0xE0 -> 3
+        lead and 0xF8 == 0xF0 -> 4
+        else -> 0
     }
 }

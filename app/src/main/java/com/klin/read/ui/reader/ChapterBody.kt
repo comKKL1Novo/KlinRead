@@ -18,8 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.klin.read.data.ReaderSettings
+import com.klin.read.reader.Chapter
+import com.klin.read.ui.design.Space
 
 /**
  * Body of a chapter, rendered as scrolling paragraphs.
@@ -149,8 +152,7 @@ fun ChapterBody(
  * punctuation. Cutting mid-sentence produces fragments that read as mistakes,
  * while cutting after a full stop keeps every block a whole thought.
  */
-internal fun splitParagraphs(body: String): List<String> {
-    val raw = body.trim().lines()
+internal fun splitParagraphs(body: String): List<String> {    val raw = body.trim().lines()
         .map { it.trim() }
         .filter { it.isNotEmpty() }
 
@@ -204,4 +206,52 @@ private fun splitAtSentences(text: String, target: Int): List<String> {
         start = cut
     }
     return blocks
+}
+
+/**
+ * Absolute character offset of paragraph [index] inside [chapter].
+ *
+ * Falls back to the chapter start when the index is out of range, so a book whose
+ * text changed shape under a stored position still saves something valid rather
+ * than throwing.
+ *
+ * Lives here, beside [splitParagraphs], rather than inside the ViewModel: the
+ * offset and the paragraph list have to be produced by the SAME splitter or the
+ * two disagree and the round trip silently drifts. It used to be a private ViewModel
+ * helper, which also made it untestable without an Android runtime.
+ */
+internal fun paragraphOffset(text: String, chapter: Chapter, index: Int): Int {
+    val body = text.substring(chapter.start, chapter.end)
+    val paragraphs = splitParagraphs(body)
+    if (index <= 0 || paragraphs.isEmpty()) return chapter.start
+
+    val clamped = index.coerceAtMost(paragraphs.size - 1)
+    // Sum the paragraphs before this one to land back on the source offset. The
+    // splitter drops the blank lines between them, so this is a slight lower bound
+    // -- by at most one newline per paragraph, well under a percent of a chapter.
+    var consumed = 0
+    for (i in 0 until clamped) {
+        consumed += paragraphs[i].length
+    }
+    return (chapter.start + consumed).coerceIn(chapter.start, chapter.end)
+}
+
+/**
+ * Inverse of [paragraphOffset]: which paragraph contains [absoluteOffset].
+ *
+ * Returns 0 when the offset predates the chapter or the chapter is empty, so a
+ * stale position opens at the top rather than throwing.
+ */
+internal fun paragraphIndexAt(text: String, chapter: Chapter, absoluteOffset: Int): Int {
+    if (absoluteOffset <= chapter.start) return 0
+    val body = text.substring(chapter.start, chapter.end)
+    val paragraphs = splitParagraphs(body)
+    if (paragraphs.isEmpty()) return 0
+
+    var consumed = chapter.start
+    for (index in paragraphs.indices) {
+        consumed += paragraphs[index].length
+        if (absoluteOffset < consumed) return index
+    }
+    return paragraphs.size - 1
 }
